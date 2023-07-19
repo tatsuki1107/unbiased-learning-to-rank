@@ -1,0 +1,6 @@
+defaults:
+  - _self_
+  - settings: default
+hydra:
+  run:
+    dir: ./logs

@@ -1,0 +1,22 @@
+dataset:
+  n_users: 1000
+  n_items: 1500
+  n_factors: 10
+  dirichlet_noise: (0.3, 0.01)
+  seed: 12345
+  position_bias: (1.0, 1.0)
+  k: 3
+  is_created_dataset: True
+  is_created_clicks: False
+
+pointwise_config:
+  n_factors: 50
+  n_epochs: 30
+  lr: 0.01
+  reg: 0.8
+
+listwise_config:
+  n_factors: 50
+  n_epochs: 30
+  lr: 0.01
+  reg: 0.8

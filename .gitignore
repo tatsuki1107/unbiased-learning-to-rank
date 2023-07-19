@@ -1,0 +1,13 @@
+/.pytest_cache
+
+/conf/settings/__pycache__/
+
+/data/
+/notebooks/
+/outputs/
+
+/src/__pycache__/
+
+/test/__pycache__/
+
+/utils/__pycache__/
