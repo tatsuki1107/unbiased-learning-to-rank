@@ -118,6 +118,18 @@ class PointwiseRecommender:
         rogit = self._sigmoid(inner_products)
         return rogit
 
+    def recommend(self, logged_data_matrix: np.ndarray):
+        pred_matrix = self.P @ self.Q.T
+        rec_candidates = np.where(
+            np.isnan(logged_data_matrix), pred_matrix, np.nan
+        )
+
+        recommend_list = np.argsort(-rec_candidates, axis=1, kind="mergesort")[
+            :, : self.n_positions
+        ]
+
+        return recommend_list
+
     def _update_P(self, user_id: int, grad_P: np.ndarray):
         self.M_P[user_id] = (
             self.beta1 * self.M_P[user_id] + (1 - self.beta1) * grad_P
