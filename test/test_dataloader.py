@@ -17,7 +17,9 @@ def test_generate_clicks():
     params = DataConfig()
     Vui = synthesize_data(params)
 
-    traindata, testdata = generate_clicks(params, Vui)
+    dataset = generate_clicks(params, Vui)
 
-    assert isinstance(traindata, TrainData)
-    assert isinstance(testdata, TestData)
+    assert isinstance(dataset.train, TrainData)
+    assert isinstance(dataset.test, TestData)
+    assert isinstance(dataset.logged_data_matrix, np.ndarray)
+    assert dataset.logged_data_matrix.shape == (params.n_users, params.n_items)

@@ -14,3 +14,10 @@ class TestData:
     user_ids: np.ndarray[np.ndarray[np.int64]]
     item_ids: np.ndarray[np.ndarray[np.int64]]
     ratings: np.ndarray[np.ndarray[np.float64]]
+
+
+@dataclass(frozen=True)
+class Dataset:
+    train: TrainData
+    test: TestData
+    logged_data_matrix: np.ndarray
