@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import numpy as np
-from typing import Optional, List, Tuple
+from typing import Optional, Tuple
 from utils.models import TrainData, TestData
 from sklearn.utils import resample
 
@@ -28,11 +28,11 @@ class ListwiseRecommender:
         np.random.seed(self.seed)
         self.P = np.random.normal(
             size=(self.n_users, self.n_factors),
-            scale=1 / np.sqrt(self.n_factors),
+            scale=0.0001,
         )
         self.Q = np.random.normal(
             size=(self.n_items, self.n_factors),
-            scale=1 / np.sqrt(self.n_factors),
+            scale=0.0001,
         )
         self.M_P = np.zeros_like(self.P)
         self.M_Q = np.zeros_like(self.Q)
@@ -57,25 +57,6 @@ class ListwiseRecommender:
                 n_samples=self.batch_size,
                 random_state=self.seed,
             )
-            for user_ids, item_ids, clicks in zip(*samples):
-                user_id = user_ids[0]
-                softmax = self._softmax(self.Q[item_ids] @ self.P[user_id])
-                grad_P = (
-                    -(
-                        (clicks / self.pscores)
-                        @ (self.Q[item_ids] - softmax @ self.Q[item_ids])
-                    )
-                    + self.reg * self.P[user_id]
-                )
-                self._update_P(user_id, grad_P)
-
-                grad_Q = (
-                    -((clicks / self.pscores) * (1 - softmax))[:, None]
-                    * self.P[user_id]
-                    + self.reg * self.Q[item_ids]
-                )
-                self._update_Q(item_ids, grad_Q)
-
             trainloss = self._cross_entoropy_loss(
                 samples[0].reshape(-1),
                 samples[1].reshape(-1),
@@ -94,6 +75,26 @@ class ListwiseRecommender:
 
             mean_ndcgs = self._ndcg(test)
             ndcgs.append(mean_ndcgs)
+            for user_ids, item_ids, clicks in zip(*samples):
+                user_id = user_ids[0]
+                softmax = self.plackett_luce(
+                    self.Q[item_ids] @ self.P[user_id]
+                )
+                grad_P = (
+                    -(
+                        (clicks / self.pscores)
+                        @ (self.Q[item_ids] - softmax @ self.Q[item_ids])
+                    )
+                    + self.reg * self.P[user_id]
+                )
+                self._update_P(user_id, grad_P)
+
+                grad_Q = (
+                    -((clicks / self.pscores) * (1 - softmax))[:, None]
+                    * self.P[user_id]
+                    + self.reg * self.Q[item_ids]
+                )
+                self._update_Q(item_ids, grad_Q)
 
         return train_loss, test_loss, ndcgs
 
@@ -109,15 +110,21 @@ class ListwiseRecommender:
         return loss
 
     def _softmax(self, x):
-        # xが1次元の場合と2次元の場合で処理を分ける
-        if len(x.shape) == 1:
-            x = x - np.max(x)  # オーバーフロー対策
-            return np.exp(x) / np.sum(np.exp(x))
-        elif len(x.shape) == 2:
-            x = x - np.max(x, axis=1, keepdims=True)  # オーバーフロー対策
-            return np.exp(x) / np.sum(np.exp(x), axis=1, keepdims=True)
-        else:
-            raise ValueError("Input array should be 1D or 2D.")
+        x = x - np.max(x)  # オーバーフロー防止
+        return np.exp(x) / np.sum(np.exp(x))
+
+    def plackett_luce(self, arr):
+        if arr.ndim == 1:
+            return np.array(
+                [self._softmax(arr[i:])[0] for i in range(len(arr))]
+            )
+        elif arr.ndim == 2:
+            return np.array(
+                [
+                    [self._softmax(arr[j, i:])[0] for i in range(arr.shape[1])]
+                    for j in range(arr.shape[0])
+                ]
+            )
 
     def predict(self, user_ids: int, item_ids: int):
         inner_products = np.array(
@@ -126,7 +133,7 @@ class ListwiseRecommender:
                 for user_id, item_id in zip(user_ids, item_ids)
             ]
         ).reshape(-1, self.n_positions)
-        softmax = self._softmax(inner_products).flatten()
+        softmax = self.plackett_luce(inner_products).flatten()
         return softmax
 
     def recommend(self, logged_data_matrix: np.ndarray):
@@ -163,25 +170,27 @@ class ListwiseRecommender:
         V_Q_hat = self.V_Q[item_ids] / (1 - self.beta2)
         self.Q[item_ids] -= self.lr * M_Q_hat / ((V_Q_hat**0.5) + self.eps)
 
-    def _dcg(self, scores: List[float]) -> float:
-        return np.sum(
-            [
-                (np.power(2, score) - 1) / np.log2(i + 2)
-                for i, score in enumerate(scores)
-            ]
+    def _dcg(self, user_relevances: np.ndarray, _k: int = 3) -> float:
+        user_relevances = user_relevances[:_k]
+        if len(user_relevances) == 0:
+            return 0.0
+        return user_relevances[0] + np.sum(
+            user_relevances[1:]
+            / np.log2(np.arange(2, len(user_relevances) + 1))
         )
 
-    def _ndcg(self, test: TestData):
+    def _ndcg(self, test: TestData) -> float:
         ndcgs = []
         for user_ids, item_ids, ratings in zip(
             test.user_ids, test.item_ids, test.ratings
         ):
-            pred_scores = self.predict(user_ids, item_ids)
-            ranked_r = ratings[np.argsort(-pred_scores)]
-            dcg = self._dcg(ranked_r)
-            idcg = self._dcg(np.sort(ratings)[::-1])
+            # indcg = self._dcg(np.sort(ratings)[::-1])
+            # if not indcg:
+            #    ndcgs.append(0.0)
 
-            if idcg != 0:
-                ndcgs.append(dcg / idcg)
+            scores = self.predict(user_ids, item_ids)
+            pred_ratings = ratings[scores.argsort()[::-1]]
+            dcg = self._dcg(pred_ratings)
+            ndcgs.append(dcg / np.sum(pred_ratings))
 
         return np.mean(ndcgs)

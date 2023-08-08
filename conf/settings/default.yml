@@ -3,6 +3,8 @@ dataset:
   n_items: 1500
   n_factors: 10
   dirichlet_noise: (0.3, 0.01)
+  mu_u: 1
+  mu_i: 100
   seed: 12345
   position_bias: (1.0, 1.0)
   k: 3

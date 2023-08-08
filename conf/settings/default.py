@@ -4,13 +4,20 @@ from typing import Tuple
 
 @dataclass
 class DataConfig:
-    n_users: int = 10000
-    n_items: int = 15000
+    n_users: int = 100
+    n_items: int = 500
     n_factors: int = 10
+    mu_u: int = 1
+    mu_i: int = 100
     dirichlet_noise: Tuple[float, float] = (0.3, 0.01)
     seed: int = 12345
+    train_test_split: float = 0.8
+    n_rankings_per_user: int = 10
     k: int = 10
-    position_bias: Tuple[float, float] = (0.9, 1.0)
+    position_bias: Tuple[float, float] = (1.0, 0.5)
+    p_power: float = 0.5
+    policy: str = "selection_bias"
+    oracle: bool = False
     is_created_dataset: bool = False
     is_created_clicks: bool = False
 
@@ -18,9 +25,11 @@ class DataConfig:
 @dataclass
 class PointwiseConfig:
     n_factors: int = 300
+    scale: float = 0.01
     n_epochs: int = 10
     lr: float = 0.001
     reg: float = 1.5
+    batch_size: int = 30
 
 
 @dataclass
