@@ -15,8 +15,7 @@ class DataConfig:
     n_rankings_per_user: int = 10
     k: int = 10
     position_bias: Tuple[float, float] = (1.0, 0.5)
-    p_power: float = 0.5
-    policy: str = "selection_bias"
+    p_power: float = 1.0
     oracle: bool = False
     is_created_dataset: bool = False
     is_created_clicks: bool = False
@@ -35,9 +34,11 @@ class PointwiseConfig:
 @dataclass
 class ListwiseConfig:
     n_factors: int = 300
+    scale: float = 0.01
     n_epochs: int = 10
     lr: float = 0.001
     reg: float = 1.5
+    batch_size: int = 30
 
 
 @dataclass

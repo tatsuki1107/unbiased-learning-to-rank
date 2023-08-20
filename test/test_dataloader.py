@@ -14,7 +14,7 @@ def test_synthesize_data():
 
 
 def test_generate_logged_data():
-    params = DataConfig(policy="selection_bias", oracle=False)
+    params = DataConfig()
     Vui = synthesize_data(params)
 
     dataset = generate_logged_data(params, Vui)

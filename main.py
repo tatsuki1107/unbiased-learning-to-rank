@@ -5,9 +5,9 @@ import hydra
 from hydra.core.config_store import ConfigStore
 from omegaconf import DictConfig
 from conf.settings.default import ExperimentConfig
-from utils.dataloader import synthesize_data, generate_logged_data, get_pscores
-from src.pointwiseMF import PointwiseRecommender
-from src.listwiseMF import ListwiseRecommender
+from utils.dataloader import synthesize_data, generate_logged_data
+from src.pointwise import PointwiseRecommender
+from src.listwise import ListwiseRecommender
 
 
 cs = ConfigStore.instance()
@@ -35,7 +35,6 @@ def main(cfg: DictConfig) -> None:
             joblib.dump([synthetic_data, dataset], f)
 
     dataset = generate_logged_data(cfg.dataset, synthetic_data)
-    estimated_pscores = get_pscores(cfg.dataset.k, cfg.dataset.position_bias)
 
     result_df = pd.DataFrame()
 
@@ -48,7 +47,7 @@ def main(cfg: DictConfig) -> None:
         n_epochs=cfg.pointwise_config.n_epochs,
         reg=cfg.pointwise_config.reg,
         seed=cfg.dataset.seed,
-        pscores=estimated_pscores,
+        pscores=dataset.pscores,
         n_positions=cfg.dataset.k,
     )
 
@@ -91,7 +90,7 @@ def main(cfg: DictConfig) -> None:
         n_epochs=cfg.listwise_config.n_epochs,
         reg=cfg.listwise_config.reg,
         seed=cfg.dataset.seed,
-        pscores=estimated_pscores,
+        pscores=dataset.pscores,
         n_positions=cfg.dataset.k,
     )
 

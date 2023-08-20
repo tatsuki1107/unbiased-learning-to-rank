@@ -1,7 +1,10 @@
 import optuna
 import json
-import numpy as np
-from src.pointwiseMF import PointwiseRecommender
+
+# import numpy as np
+
+# from src.listwiseMF import ListwiseRecommender
+from src.pointwise import PointwiseRecommender
 from conf.settings.default import DataConfig
 from utils.dataloader import synthesize_data, generate_logged_data
 
@@ -13,10 +16,10 @@ params = DataConfig(
     mu_i=100,
     dirichlet_noise=(0.3, 0.01),
     n_factors=10,
-    policy="selection_bias",
+    policy="random",
     oracle=False,
     k=5,
-    train_test_split=0.7,
+    train_test_split=0.8,
 )
 Vui = synthesize_data(params)
 dataset = generate_logged_data(params, Vui)
@@ -35,8 +38,8 @@ def objective(trial):
     n_epochs = trial.suggest_int("n_epochs", 1, 100)
     seed = params.seed
     batch_size = trial.suggest_int("batch_size", 50, 200)
-    M = trial.suggest_float("M", 0.01, 0.1)
-    cliped_pscores = np.where(dataset.pscores < M, M, dataset.pscores)
+    # M = trial.suggest_float("M", 0.01, 0.1)
+    # cliped_pscores = np.where(dataset.pscores < M, M, dataset.pscores)
 
     # モデルの設定
     model = PointwiseRecommender(
@@ -49,8 +52,7 @@ def objective(trial):
         n_epochs=n_epochs,
         seed=seed,
         n_positions=params.k,
-        oracle=False,
-        pscores=cliped_pscores,
+        pscores=None,
         batch_size=batch_size,
     )
 
@@ -67,5 +69,5 @@ if __name__ == "__main__":
 
     dumped_params = json.dumps(study.best_params)
 
-    with open("./data/pointwise_ips_params.json", "w") as f:
+    with open("./data/pointwise_naive_params.json", "w") as f:
         f.write(dumped_params)
