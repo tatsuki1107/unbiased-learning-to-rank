@@ -3,7 +3,7 @@ import numpy as np
 from typing import Tuple, Union
 from sklearn.utils import resample
 from utils.metrics import calc_ndcg
-from base import BaseRecommender
+from src.base import BaseRecommender
 
 
 @dataclass

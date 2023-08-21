@@ -106,17 +106,20 @@ def generate_logged_data(params: DataConfig, Vui: np.ndarray) -> LogDataset:
 
         user_ids = [user_id] * params.k
         Vu_i = Vui[user_id]
-        for items in train_items_sets:
+        for item_ids in train_items_sets:
             # 人気なアイテムほど上位に表示されやすい状況を再現
-            sorted_item_indices = item_exposures[items].argsort()[::-1]
-            items = items[sorted_item_indices]
-            ratings, exposures = Vu_i[items], item_exposures[items]
+            sorted_item_indices = item_exposures[item_ids].argsort()[::-1]
+            sorted_item_ids = item_ids[sorted_item_indices]
+            ratings, exposures = (
+                Vu_i[sorted_item_ids],
+                item_exposures[sorted_item_ids],
+            )
 
             # P(Y = 1) = P(R = 1) * P(O = 1)
             clicks = np.random.binomial(n=1, p=ratings * exposures)
 
             click_info = np.column_stack(
-                [user_ids, items, ratings, clicks]
+                [user_ids, sorted_item_ids, ratings, clicks]
             ).tolist()
             train.append(click_info)
 
@@ -125,11 +128,13 @@ def generate_logged_data(params: DataConfig, Vui: np.ndarray) -> LogDataset:
         test_items_sets = np.random.choice(
             item_range, size=(test_size, params.k), replace=False
         )
-        for items in test_items_sets:
-            ratings = Vu_i[items]
+        for item_ids in test_items_sets:
+            ratings = Vu_i[item_ids]
             # P(Y = 1) = P(R = 1)
             ratings = np.random.binomial(n=1, p=ratings)
-            click_info = np.column_stack([user_ids, items, ratings]).tolist()
+            click_info = np.column_stack(
+                [user_ids, item_ids, ratings]
+            ).tolist()
             test.append(click_info)
 
     train: np.ndarray = np.array(train)
@@ -157,7 +162,7 @@ def generate_logged_data(params: DataConfig, Vui: np.ndarray) -> LogDataset:
     # (本来ならpolicy-awareなどを用いて, 出現頻度が0になることを防ぐ必要がある。)
     pscores = np.ones(params.n_items) * item_freqs_prob.min() * 0.1
     for item_id, pscore in item_freqs_dict.items():
-        pscores[item_id] = pscore
+        pscores[item_id] = pscore**0.5
 
     train, val = train_test_split(
         train, test_size=0.2, random_state=params.seed

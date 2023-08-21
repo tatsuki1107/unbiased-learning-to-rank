@@ -3,7 +3,8 @@ from dataclasses import dataclass
 from typing import Tuple
 from sklearn.utils import resample
 from utils.metrics import calc_ndcg
-from base import BaseRecommender
+from src.base import BaseRecommender
+from utils.optimizer import Adam
 
 
 @dataclass
@@ -22,10 +23,8 @@ class PointwiseRecommender(BaseRecommender):
         self.user_bias = np.zeros(self.n_users)
         self.item_bias = np.zeros(self.n_items)
 
-        self.M_item_bias = np.zeros_like(self.item_bias)
-        self.V_item_bias = np.zeros_like(self.item_bias)
-        self.M_user_bias = np.zeros_like(self.user_bias)
-        self.V_user_bias = np.zeros_like(self.user_bias)
+        self.adam_user_bias = Adam(self.user_bias.shape)
+        self.adam_item_bias = Adam(self.item_bias.shape)
 
     def fit(self, dataset: tuple) -> Tuple[list]:
         """学習後にエポックごとの損失と評価指標を求める
@@ -184,34 +183,18 @@ class PointwiseRecommender(BaseRecommender):
     ) -> None:
         """ユーザーバイアス項の更新"""
 
-        self.M_user_bias[user_id] = (
-            self.beta1 * self.M_user_bias[user_id]
-            + (1 - self.beta1) * grad_user_bias
+        adam_params = self.adam_user_bias.update(
+            index=user_id, grad=grad_user_bias
         )
-        self.V_user_bias[user_id] = self.beta2 * self.V_user_bias[user_id] + (
-            1 - self.beta2
-        ) * (grad_user_bias**2)
-        M_user_bias_hat = self.M_user_bias[user_id] / (1 - self.beta1)
-        V_user_bias_hat = self.V_user_bias[user_id] / (1 - self.beta2)
-        self.user_bias[user_id] -= (
-            self.lr * M_user_bias_hat / ((V_user_bias_hat**0.5) + self.eps)
-        )
+        self.user_bias[user_id] -= self.lr * adam_params
 
     def _update_item_bias(self, item_id: int, grad_item_bias: float) -> None:
         """アイテムバイアス項の更新"""
 
-        self.M_item_bias[item_id] = (
-            self.beta1 * self.M_item_bias[item_id]
-            + (1 - self.beta1) * grad_item_bias
+        adam_params = self.adam_item_bias.update(
+            index=item_id, grad=grad_item_bias
         )
-        self.V_item_bias[item_id] = self.beta2 * self.V_item_bias[item_id] + (
-            1 - self.beta2
-        ) * (grad_item_bias**2)
-        M_item_bias_hat = self.M_item_bias[item_id] / (1 - self.beta1)
-        V_item_bias_hat = self.V_item_bias[item_id] / (1 - self.beta2)
-        self.item_bias[item_id] -= (
-            self.lr * M_item_bias_hat / ((V_item_bias_hat**0.5) + self.eps)
-        )
+        self.item_bias[item_id] -= self.lr * adam_params
 
     def _sigmoid(self, x: np.array) -> np.array:
         return 1 / (1 + np.exp(-x))

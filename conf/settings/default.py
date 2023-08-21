@@ -12,11 +12,9 @@ class DataConfig:
     dirichlet_noise: Tuple[float, float] = (0.3, 0.01)
     seed: int = 12345
     train_test_split: float = 0.8
-    n_rankings_per_user: int = 10
-    k: int = 10
-    position_bias: Tuple[float, float] = (1.0, 0.5)
+    n_rankings_per_user: int = 5
+    k: int = 15
     p_power: float = 1.0
-    oracle: bool = False
     is_created_dataset: bool = False
     is_created_clicks: bool = False
 

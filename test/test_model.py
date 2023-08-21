@@ -28,12 +28,12 @@ def test_pointwise_mf():
     train = dataset.train[:, :, [0, 1, 3]]
     val = dataset.val[:, :, [0, 1, 3]]
     test = dataset.test[:, :, [0, 1, 2]]
-    val_loss, test_loss, ndcgs = model.fit((train, val, test))
+    val_loss, test_loss, test_ndcgs = model.fit((train, val, test))
     recommend_list = model.recommend(dataset.logged_data_matrix)
 
     assert isinstance(val_loss, list)
     assert isinstance(test_loss, list)
-    assert isinstance(ndcgs, list)
+    assert isinstance(test_ndcgs, list)
     assert isinstance(recommend_list, np.ndarray)
 
 
@@ -60,7 +60,7 @@ def test_listwise_mf():
     train = dataset.train[:, :, [0, 1, 3]]
     val = dataset.val[:, :, [0, 1, 3]]
     test = dataset.test[:, :, [0, 1, 2]]
-    val_loss, test_loss, ndcgs = model.fit((train, val, test))
+    train_loss, val_loss, test_loss, ndcgs = model.fit((train, val, test))
     recommend_list = model.recommend(dataset.logged_data_matrix)
 
     assert isinstance(val_loss, list)
