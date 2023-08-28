@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import numpy as np
 from typing import Tuple, Union
 from sklearn.utils import resample
-from utils.metrics import calc_ndcg
+from utils.metrics import calc_dcg
 from src.base import BaseRecommender
 
 
@@ -20,6 +20,9 @@ class ListwiseRecommender(BaseRecommender):
         train = dataset[0]
         val = dataset[1].reshape(-1, 3)
         test = dataset[2].reshape(-1, 3)
+
+        val_pscores = self.pscores[val[:, 1].astype(np.int64)]
+        test_pscores = np.ones_like(test[:, 1])
 
         train_loss, val_loss, test_loss, test_ndcgs = [], [], [], []
         for _ in range(self.n_epochs):
@@ -56,7 +59,7 @@ class ListwiseRecommender(BaseRecommender):
                 user_ids=samples[0].reshape(-1),
                 item_ids=samples[1].reshape(-1),
                 ratings=samples[2].reshape(-1),
-                data="train",
+                pscores=self.pscores[samples[1].reshape(-1)],
             )
             train_loss.append(trainloss)
 
@@ -64,7 +67,7 @@ class ListwiseRecommender(BaseRecommender):
                 user_ids=val[:, 0].astype(np.int64),
                 item_ids=val[:, 1].astype(np.int64),
                 ratings=val[:, 2],
-                data="train",
+                pscores=val_pscores,
             )
             val_loss.append(valloss)
 
@@ -72,17 +75,17 @@ class ListwiseRecommender(BaseRecommender):
                 user_ids=test[:, 0],
                 item_ids=test[:, 1],
                 ratings=test[:, 2],
-                data="test",
+                pscores=test_pscores,
             )
             test_loss.append(testloss)
 
             test_scores = self.predict(
                 user_ids=test[:, 0],
                 item_ids=test[:, 1],
-            ).reshape(-1, self.n_positions)
-            mean_ndcgs = calc_ndcg(
+            )
+            mean_ndcgs = calc_dcg(
                 ratings=test[:, 2].reshape(-1, self.n_positions),
-                scores=test_scores,
+                scores=test_scores.reshape(-1, self.n_positions),
             )
             test_ndcgs.append(mean_ndcgs)
 
@@ -93,17 +96,12 @@ class ListwiseRecommender(BaseRecommender):
         user_ids: np.ndarray,
         item_ids: np.ndarray,
         ratings: np.ndarray,
-        data: str,
+        pscores: np.ndarray,
     ) -> float:
-        if data == "train":
-            _pscores = self.pscores[item_ids]
-        elif data == "test":
-            _pscores = np.ones_like(item_ids)
-
         softmax = self.predict(user_ids, item_ids)
-        loss = -np.sum(
-            (ratings / _pscores) * np.log(softmax + self.eps)
-        ) / len(ratings)
+        loss = -np.sum((ratings / pscores) * np.log(softmax + self.eps)) / len(
+            ratings
+        )
         return loss
 
     def _softmax(self, x: np.ndarray) -> Union[float, np.ndarray]:

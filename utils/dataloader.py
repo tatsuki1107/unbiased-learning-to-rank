@@ -50,7 +50,7 @@ def synthesize_data(params: DataConfig) -> np.ndarray:
     mu = np.dot(alpha_i, p_u.T)
     var = 0.00001
 
-    # アルファとベータが0以下になるのを防ぐ
+    # alphaとbetaが0以下になるのを防ぐ
     eps = 1e-5
     alpha = (((1 - mu) / (var**2)) - (1 / mu)) * (mu**2)
     alpha = np.where(alpha > 0, alpha, eps)
@@ -145,24 +145,6 @@ def generate_logged_data(params: DataConfig, Vui: np.ndarray) -> LogDataset:
         item_ids=train[:, :, 1].astype(int).flatten(),
         clicks=train[:, :, 3].astype(int).flatten(),
     )
-
-    # trainデータ内のアイテムの出現頻度をもとにP(O = 1)を算出
-    _train = train.copy().reshape(-1, 4)
-    appeared_item_ids, item_freqs = np.unique(
-        _train[_train[:, 3] == 1, 1], return_counts=True
-    )
-    del _train
-
-    item_freqs_prob = item_freqs / item_freqs.max()
-    item_freqs_dict = dict(
-        zip(appeared_item_ids.astype(np.int64), item_freqs_prob)
-    )
-
-    # クリックのないアイテムにはitem_freqs_prob.min() にさらに0.1倍したものを与える。
-    # (本来ならpolicy-awareなどを用いて, 出現頻度が0になることを防ぐ必要がある。)
-    pscores = np.ones(params.n_items) * item_freqs_prob.min() * 0.1
-    for item_id, pscore in item_freqs_dict.items():
-        pscores[item_id] = pscore**0.5
 
     train, val = train_test_split(
         train, test_size=0.2, random_state=params.seed

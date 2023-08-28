@@ -60,6 +60,13 @@ class BaseRecommender(ABC):
 
     @abstractmethod
     def recommend(self, logged_data_matrix: np.ndarray) -> np.ndarray:
+        """ユーザーの好みを予測し、ランキングを生成する
+        args:
+            logged_data_matrix: ログデータ内の評価値行列。欠損しているアイテムが推薦の候補。
+
+        returns:
+            各ユーザへのレコメンドリスト
+        """
         pass
 
     @abstractmethod

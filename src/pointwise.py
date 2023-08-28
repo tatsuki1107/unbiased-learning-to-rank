@@ -2,7 +2,7 @@ import numpy as np
 from dataclasses import dataclass
 from typing import Tuple
 from sklearn.utils import resample
-from utils.metrics import calc_ndcg
+from utils.metrics import calc_dcg
 from src.base import BaseRecommender
 from utils.optimizer import Adam
 
@@ -39,6 +39,9 @@ class PointwiseRecommender(BaseRecommender):
         val = dataset[1].reshape(-1, 3)
         test = dataset[2].reshape(-1, 3)
         self.global_bias = train[:, :, 2].mean()
+
+        val_pscores = self.pscores[val[:, 1].astype(np.int64)]
+        test_pscores = np.ones_like(test[:, 1])
 
         val_loss, test_loss, test_ndcgs = [], [], []
         for _ in range(self.n_epochs):
@@ -80,7 +83,7 @@ class PointwiseRecommender(BaseRecommender):
                 user_ids=val[:, 0].astype(np.int64),
                 item_ids=val[:, 1].astype(np.int64),
                 ratings=val[:, 2],
-                data="train",
+                pscores=val_pscores,
             )
             val_loss.append(valloss)
 
@@ -88,17 +91,17 @@ class PointwiseRecommender(BaseRecommender):
                 user_ids=test[:, 0],
                 item_ids=test[:, 1],
                 ratings=test[:, 2],
-                data="test",
+                pscores=test_pscores,
             )
             test_loss.append(testloss)
 
             test_scores = self.predict(
                 user_ids=test[:, 0],
                 item_ids=test[:, 1],
-            ).reshape(-1, self.n_positions)
-            mean_ndcgs = calc_ndcg(
+            )
+            mean_ndcgs = calc_dcg(
                 ratings=test[:, 2].reshape(-1, self.n_positions),
-                scores=test_scores,
+                scores=test_scores.reshape(-1, self.n_positions),
             )
             test_ndcgs.append(mean_ndcgs)
 
@@ -109,7 +112,7 @@ class PointwiseRecommender(BaseRecommender):
         user_ids: np.ndarray,
         item_ids: np.ndarray,
         ratings: np.ndarray,
-        data: str,
+        pscores: np.ndarray,
     ) -> float:
         """エポック毎のエントロピーロスを算出
 
@@ -118,15 +121,10 @@ class PointwiseRecommender(BaseRecommender):
             ない。よって、_pscoresをすべて1にするための引数
         """
 
-        if data == "train":
-            _pscores = self.pscores[item_ids]
-        elif data == "test":
-            _pscores = np.ones_like(item_ids)
-
         pred_ratings = self.predict(user_ids, item_ids)
         loss = -np.sum(
-            (ratings / _pscores) * np.log(pred_ratings + self.eps)
-            + (1 - (ratings / _pscores)) * np.log(1 - pred_ratings + self.eps)
+            (ratings / pscores) * np.log(pred_ratings + self.eps)
+            + (1 - (ratings / pscores)) * np.log(1 - pred_ratings + self.eps)
         ) / len(ratings)
         return loss
 

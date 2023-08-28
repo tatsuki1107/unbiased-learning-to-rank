@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def calc_ndcg(ratings: np.ndarray, scores: np.ndarray, _k: int = 5) -> float:
+def calc_dcg(ratings: np.ndarray, scores: np.ndarray, _k: int = 5) -> float:
     test_indices = np.arange(ratings.shape[0])[:, None]
     pred_ratings = ratings[
         test_indices, np.argsort(-scores, axis=1, kind="mergesort")
