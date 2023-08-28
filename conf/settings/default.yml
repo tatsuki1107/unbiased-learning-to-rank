@@ -1,24 +1,30 @@
 dataset:
-  n_users: 1000
-  n_items: 1500
+  n_users: 100
+  n_items: 500
   n_factors: 10
   dirichlet_noise: (0.3, 0.01)
   mu_u: 1
   mu_i: 100
   seed: 12345
-  position_bias: (1.0, 1.0)
-  k: 3
+  train_test_split: 0.8
+  n_rankings_per_user: 5
+  k: 15
+  p_power: 1.0
   is_created_dataset: True
   is_created_clicks: False
 
 pointwise_config:
-  n_factors: 50
-  n_epochs: 30
-  lr: 0.01
-  reg: 0.8
+  n_factors: 30
+  scale: 0.0012754980286032412
+  n_epochs: 94
+  lr: 0.021675098379053206
+  reg: 0.0005926736508739346
+  batch_size: 197
 
 listwise_config:
-  n_factors: 50
-  n_epochs: 30
-  lr: 0.01
-  reg: 0.8
+  n_factors: 43
+  scale: 0.0012754980286032412
+  n_epochs: 94
+  lr: 0.010255764352948631
+  reg: 0.3517244890698348
+  batch_size: 195

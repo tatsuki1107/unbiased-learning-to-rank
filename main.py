@@ -16,6 +16,17 @@ cs.store(name="config", node=ExperimentConfig)
 
 @hydra.main(config_path="conf", config_name="config", version_base=None)
 def main(cfg: DictConfig) -> None:
+    """unbiased learning to rankの実験を行う
+    (まだ開発途中でこのmain.pyは未完成)
+
+    実験概要: UnbiasedなPointwise損失関数とListwise損失関数の比較を行う
+
+    目的: 推薦の文脈でunbiasedなListwise損失関数が機能し、Pointwise損失関数よりもランク指標が高くなることを確かめたい。
+
+    懸念事項: 論理的にはunbiasedなPointwise, Listwise損失関数は機能するが、完全に
+    Implicitなデータしかない場合、biasedな推定量と有意な差が見られない
+    """
+
     data_dir = Path("./data/synthetic.pkl")
 
     if cfg.dataset.is_created_dataset and cfg.dataset.is_created_clicks:

@@ -75,7 +75,7 @@ class BaseRecommender(ABC):
         user_ids: np.ndarray,
         item_ids: np.ndarray,
         ratings: np.ndarray,
-        data: str,
+        pscores: np.ndarray,
     ) -> float:
         pass
 

@@ -21,22 +21,22 @@ class DataConfig:
 
 @dataclass
 class PointwiseConfig:
-    n_factors: int = 300
-    scale: float = 0.01
-    n_epochs: int = 10
-    lr: float = 0.001
-    reg: float = 1.5
-    batch_size: int = 30
+    n_factors: int = 30
+    scale: float = 0.0012754980286032412
+    n_epochs: int = 94
+    lr: float = 0.021675098379053206
+    reg: float = 0.0005926736508739346
+    batch_size: int = 197
 
 
 @dataclass
 class ListwiseConfig:
-    n_factors: int = 300
-    scale: float = 0.01
-    n_epochs: int = 10
-    lr: float = 0.001
-    reg: float = 1.5
-    batch_size: int = 30
+    n_factors: int = 43
+    scale: float = 0.0012754980286032412
+    n_epochs: int = 94
+    lr: float = 0.010255764352948631
+    reg: float = 0.3517244890698348
+    batch_size: int = 195
 
 
 @dataclass
