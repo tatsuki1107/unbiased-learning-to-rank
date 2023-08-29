@@ -8,7 +8,11 @@ from src.base import BaseRecommender
 
 @dataclass
 class ListwiseRecommender(BaseRecommender):
-    """matrix factorizationにTop-1 リストワイズ損失を用いた推薦モデルのクラス"""
+    """
+    ListRank-MF (https://dl.acm.org/doi/abs/10.1145/1864708.1864764
+    ?casa_token=MUgYve_rEOoAAAAA:j1ljuuHOeQ3ic8s_dtv5xSA2SLZQbQUio74J
+    CfCoob5YDSdPCxQkANgLY2RRiqOF0xzYHcQghUR5) をunbiasedに拡張した新たな推定量
+    """
 
     def __post_init__(self) -> None:
         """Initialize Class."""
