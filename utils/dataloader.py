@@ -4,7 +4,6 @@ from scipy.stats import dirichlet
 import scipy.stats as stats
 from conf.settings.default import DataConfig
 from utils.models import LogDataset
-from sklearn.model_selection import train_test_split
 
 
 def synthesize_data(params: DataConfig) -> np.ndarray:
@@ -88,12 +87,19 @@ def generate_logged_data(params: DataConfig, Vui: np.ndarray) -> LogDataset:
             ・logged_data_matrix: ログデータ内の評価値行列
             ・pscores: 学習時に重み付けする傾向スコア
     """
-    train, test = [], []
-    train_size = int(params.train_test_split * params.n_rankings_per_user)
+    train, val, test = [], [], []
+    train_size = int(params.train_test_split * params.n_rankings_per_user) - 1
+    val_size = 1
     test_size = params.n_rankings_per_user - train_size
 
+    # train_item_indices = np.arange(150)
+
     # 人気アイテムに露出確率を与える
-    item_exposures = (Vui.mean(0) / Vui.mean(0).max()) ** params.p_power
+    clip = 1e-7
+    item_exposures = np.maximum(
+        (Vui.mean(0) / Vui.mean(0).max()) ** params.p_power,
+        clip,
+    )
 
     for user_id in range(params.n_users):
         np.random.seed(params.seed + user_id)
@@ -107,24 +113,71 @@ def generate_logged_data(params: DataConfig, Vui: np.ndarray) -> LogDataset:
         user_ids = [user_id] * params.k
         Vu_i = Vui[user_id]
         for item_ids in train_items_sets:
-            # 人気なアイテムほど上位に表示されやすい状況を再現
-            sorted_item_indices = item_exposures[item_ids].argsort()[::-1]
-            sorted_item_ids = item_ids[sorted_item_indices]
-            ratings, exposures = (
-                Vu_i[sorted_item_ids],
-                item_exposures[sorted_item_ids],
-            )
+            ratings = Vu_i[item_ids]
+            exposures = item_exposures[item_ids]
 
             # P(Y = 1) = P(R = 1) * P(O = 1)
-            clicks = np.random.binomial(n=1, p=ratings * exposures)
+            rating_labels = np.random.binomial(n=1, p=ratings)
+            exposure_labels = np.random.binomial(n=1, p=exposures)
+            clicks = rating_labels * exposure_labels
+
+            # negative sampling
+            # positive_indices = np.random.choice(
+            #    train_item_indices[clicks == 1],
+            #    replace=False,
+            #    size=params.k // 4,
+            # )
+            # negative_indices = np.random.choice(
+            #    train_item_indices[clicks == 0],
+            #    replace=False,
+            #    size=params.k - len(positive_indices),
+            # )
+            # samples_indices = np.r_[positive_indices, negative_indices]
 
             click_info = np.column_stack(
-                [user_ids, sorted_item_ids, ratings, clicks]
+                [
+                    user_ids,
+                    item_ids,
+                    ratings,
+                    exposures,
+                    exposure_labels,
+                    clicks
+                ]
             ).tolist()
             train.append(click_info)
 
-        # testデータを生成
+        # valデータを生成
         item_range = tuple(set(item_range) - set(train_items_sets.flatten()))
+        val_items_sets = np.random.choice(
+            item_range, size=(val_size, params.k), replace=False
+        )
+        for item_ids in val_items_sets:
+            ratings = Vu_i[item_ids]
+            exposures = item_exposures[item_ids]
+
+            # P(Y = 1) = P(R = 1) * P(O = 1)
+            rating_labels = np.random.binomial(n=1, p=ratings)
+            exposure_labels = np.random.binomial(n=1, p=exposures)
+            clicks = rating_labels * exposure_labels
+
+            click_info = np.column_stack(
+                [
+                    user_ids,
+                    item_ids,
+                    ratings,
+                    exposures,
+                    exposure_labels,
+                    clicks
+                ]
+            ).tolist()
+            val.append(click_info)
+
+        # testデータを生成
+        item_range = tuple(
+            set(item_range)
+            - set(train_items_sets.flatten())
+            - set(val_items_sets.flatten())
+        )
         test_items_sets = np.random.choice(
             item_range, size=(test_size, params.k), replace=False
         )
@@ -138,16 +191,13 @@ def generate_logged_data(params: DataConfig, Vui: np.ndarray) -> LogDataset:
             test.append(click_info)
 
     train: np.ndarray = np.array(train)
+    val: np.ndarray = np.array(val)
     test: np.ndarray = np.array(test)
 
     logged_data_matrix = _get_loggged_data_matrix(
         user_ids=train[:, :, 0].astype(int).flatten(),
         item_ids=train[:, :, 1].astype(int).flatten(),
-        clicks=train[:, :, 3].astype(int).flatten(),
-    )
-
-    train, val = train_test_split(
-        train, test_size=0.2, random_state=params.seed
+        clicks=train[:, :, 5].astype(int).flatten(),
     )
 
     return LogDataset(

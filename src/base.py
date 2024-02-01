@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import numpy as np
-from typing import Optional, Tuple
+from typing import Tuple
 from utils.optimizer import Adam
 
 
@@ -32,10 +32,9 @@ class BaseRecommender(ABC):
     reg: float
     lr: float
     n_epochs: int
-    scale: float
     seed: int
     n_positions: int
-    pscores: Optional[np.ndarray] = None
+    scale: float = 1
     batch_size: int = 32
     eps = 1e-8
 
@@ -43,16 +42,15 @@ class BaseRecommender(ABC):
         """Initialize Class."""
         np.random.seed(self.seed)
         self.P = np.random.normal(
-            size=(self.n_users, self.n_factors), scale=self.scale
+            size=(self.n_users, self.n_factors),
+            scale=self.scale
         )
         self.Q = np.random.normal(
-            size=(self.n_items, self.n_factors), scale=self.scale
+            size=(self.n_items, self.n_factors),
+            scale=self.scale
         )
         self.adam_P = Adam(self.P.shape)
         self.adam_Q = Adam(self.Q.shape)
-
-        if self.pscores is None:
-            self.pscores = np.ones(self.n_items)
 
     @abstractmethod
     def fit(self, dataset: tuple) -> Tuple[list]:

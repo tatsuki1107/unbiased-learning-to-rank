@@ -36,29 +36,24 @@ class PointwiseRecommender(BaseRecommender):
             Tuple[list]: _description_
         """
         train = dataset[0]
-        val = dataset[1].reshape(-1, 3)
-        test = dataset[2].reshape(-1, 3)
+        val = dataset[1]
+        test = dataset[2]
         self.global_bias = train[:, :, 2].mean()
 
-        val_pscores = self.pscores[val[:, 1].astype(np.int64)]
-        test_pscores = np.ones_like(test[:, 1])
-
-        val_loss, test_loss, test_ndcgs = [], [], []
-        for _ in range(self.n_epochs):
+        val_loss, test_loss, val_dcg, test_dcg = [], [], [], []
+        for epoch in range(self.n_epochs):
             samples = resample(
-                train[:, :, 0].astype(np.int64),
-                train[:, :, 1].astype(np.int64),
-                train[:, :, 2],
-                replace=True,
+                train[:, :, 0].astype(np.int64),  # user_ids
+                train[:, :, 1].astype(np.int64),  # item_ids
+                train[:, :, 2],  # X_{u,i}
+                replace=False,
                 n_samples=self.batch_size,
-                random_state=self.seed,
+                random_state=epoch,
             )
-            for user_ids, item_ids, clicks in zip(*samples):
+            for user_ids, item_ids, labels in zip(*samples):
                 user_id = user_ids[0]
 
-                err = (clicks / self.pscores[item_ids]) - self.predict(
-                    user_ids, item_ids
-                )
+                err = labels - self.predict(user_ids, item_ids)
                 err = err.reshape(-1, 1)
                 grad_P = (
                     np.sum(-err * self.Q[item_ids], axis=0)
@@ -83,15 +78,23 @@ class PointwiseRecommender(BaseRecommender):
                 user_ids=val[:, 0].astype(np.int64),
                 item_ids=val[:, 1].astype(np.int64),
                 ratings=val[:, 2],
-                pscores=val_pscores,
             )
             val_loss.append(valloss)
+
+            val_scores = self.predict(
+                user_ids=val[:, 0].astype(np.int64),
+                item_ids=val[:, 1].astype(np.int64),
+            )
+            mean_dcg = calc_dcg(
+                ratings=val[:, 2].reshape(-1, self.n_positions),
+                scores=val_scores.reshape(-1, self.n_positions),
+            )
+            val_dcg.append(mean_dcg)
 
             testloss = self._cross_entoropy_loss(
                 user_ids=test[:, 0],
                 item_ids=test[:, 1],
                 ratings=test[:, 2],
-                pscores=test_pscores,
             )
             test_loss.append(testloss)
 
@@ -99,20 +102,19 @@ class PointwiseRecommender(BaseRecommender):
                 user_ids=test[:, 0],
                 item_ids=test[:, 1],
             )
-            mean_ndcgs = calc_dcg(
+            mean_dcg = calc_dcg(
                 ratings=test[:, 2].reshape(-1, self.n_positions),
                 scores=test_scores.reshape(-1, self.n_positions),
             )
-            test_ndcgs.append(mean_ndcgs)
+            test_dcg.append(mean_dcg)
 
-        return val_loss, test_loss, test_ndcgs
+        return val_loss, test_loss, val_dcg, test_dcg
 
     def _cross_entoropy_loss(
         self,
         user_ids: np.ndarray,
         item_ids: np.ndarray,
         ratings: np.ndarray,
-        pscores: np.ndarray,
     ) -> float:
         """エポック毎のエントロピーロスを算出
 
@@ -123,8 +125,8 @@ class PointwiseRecommender(BaseRecommender):
 
         pred_ratings = self.predict(user_ids, item_ids)
         loss = -np.sum(
-            (ratings / pscores) * np.log(pred_ratings + self.eps)
-            + (1 - (ratings / pscores)) * np.log(1 - pred_ratings + self.eps)
+            ratings * np.log(pred_ratings + self.eps)
+            + (1 - ratings) * np.log(1 - pred_ratings + self.eps)
         ) / len(ratings)
         return loss
 

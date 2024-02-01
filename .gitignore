@@ -3,7 +3,7 @@
 /conf/settings/__pycache__/
 
 /data/
-/notebooks/
+/notebooks/.ipynb_checkpoints/
 /outputs/
 
 /src/__pycache__/
